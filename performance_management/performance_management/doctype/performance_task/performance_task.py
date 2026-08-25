@@ -31,8 +31,12 @@ class PerformanceTask(Document):
 
 	def _set_assigned_by(self):
 		if not self.assigned_by:
-			self.assigned_by = frappe.session.user
-
+			emp = frappe.db.get_value("Employee", {"user_id": frappe.session.user}, ["reports_to"], as_dict=True)
+			if emp and emp.reports_to:
+				manager_user = frappe.db.get_value("Employee", emp.reports_to, "user_id")
+				self.assigned_by = manager_user or frappe.session.user
+			else:	
+				self.assigned_by = frappe.session.user
 	def _set_approval_requirement(self):
 		"""Auto-check 'Requires Approval' for High/Critical/Compliance tasks."""
 		if self.priority in ("High", "Critical") or self.task_type == "Compliance":
@@ -178,3 +182,43 @@ def has_permission(doc, ptype="read", user=None):
 	if doc.assigned_to == user or doc.assigned_by == user:
 		return True
 	return False
+
+
+@frappe.whitelist()
+def get_user_hierarchy_context():
+    """Logged in user ka Employee context: Department, Reporting Manager, aur Direct Subordinates fetch karega."""
+    user = frappe.session.user
+    
+    # Administrator ke case me saare users allow honge
+    if user == "Administrator":
+        return {"is_admin": True}
+
+    employee = frappe.db.get_value(
+        "Employee", 
+        {"user_id": user, "status": "Active"}, 
+        ["name", "department", "reports_to"], 
+        as_dict=True
+    )
+
+    if not employee:
+        return {"error": "Active Employee record not found for logged in user."}
+
+    manager_user_id = None
+    if employee.reports_to:
+        manager_user_id = frappe.db.get_value("Employee", employee.reports_to, "user_id")
+
+    # Jo log current employee ko direct report karte hain
+    subordinates = frappe.get_all(
+        "Employee",
+        filters={"reports_to": employee.name, "status": "Active"},
+        pluck="user_id"
+    )
+    subordinates = [u for u in subordinates if u]
+
+    return {
+        "is_admin": False,
+        "department": employee.department,
+        "manager_user": manager_user_id,
+        "subordinates": subordinates,
+        "current_user": user
+    }
