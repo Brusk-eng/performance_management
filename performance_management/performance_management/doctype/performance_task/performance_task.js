@@ -129,7 +129,24 @@
 
 frappe.ui.form.on("Performance Task", {
     setup(frm) {
-        frm.trigger("apply_hierarchy_filters");
+        // Dropdown link queries set karein
+        frm.set_query("department", () => {
+            return {
+                query: "performance_management.performance_management.doctype.performance_task.performance_task.get_allowed_departments"
+            };
+        });
+
+        frm.set_query("assigned_by", () => {
+            return {
+                query: "performance_management.performance_management.doctype.performance_task.performance_task.get_allowed_assigned_by"
+            };
+        });
+
+        frm.set_query("assigned_to", () => {
+            return {
+                query: "performance_management.performance_management.doctype.performance_task.performance_task.get_allowed_assigned_to"
+            };
+        });
     },
 
     onload(frm) {
@@ -137,16 +154,17 @@ frappe.ui.form.on("Performance Task", {
             frappe.call({
                 method: "performance_management.performance_management.doctype.performance_task.performance_task.get_user_hierarchy_context",
                 callback(r) {
-                    if (!r.message || r.message.is_admin || r.message.error) return;
-
+                    if (!r.message) return;
                     const data = r.message;
 
-                    // 1. Department auto-set karein
+                    if (data.is_unrestricted) {
+                        frm.set_value("assigned_by", data.current_user);
+                        return;
+                    }
+
                     if (data.department) {
                         frm.set_value("department", data.department);
                     }
-
-                    // 2. Assigned By auto-set karein
                     if (data.manager_user) {
                         frm.set_value("assigned_by", data.manager_user);
                     } else {
@@ -157,58 +175,13 @@ frappe.ui.form.on("Performance Task", {
         }
     },
 
-    apply_hierarchy_filters(frm) {
-        frappe.call({
-            method: "performance_management.performance_management.doctype.performance_task.performance_task.get_user_hierarchy_context",
-            callback(r) {
-                if (!r.message || r.message.is_admin || r.message.error) return;
-
-                const data = r.message;
-
-                // 1. Department Filter (User clear kare tab bhi sirf apna department hi dikhega)
-                if (data.department) {
-                    frm.set_query("department", () => {
-                        return {
-                            filters: {
-                                "name": data.department
-                            }
-                        };
-                    });
-                }
-
-                // 2. Assigned By Filter
-                const allowed_assigned_by = [];
-                if (data.manager_user) allowed_assigned_by.push(data.manager_user);
-                allowed_assigned_by.push(data.current_user);
-
-                frm.set_query("assigned_by", () => {
-                    return {
-                        filters: {
-                            "name": ["in", allowed_assigned_by]
-                        }
-                    };
-                });
-
-                // 3. Assigned To Filter
-                const allowed_assigned_to = [...data.subordinates, data.current_user];
-                frm.set_query("assigned_to", () => {
-                    return {
-                        filters: {
-                            "name": ["in", allowed_assigned_to]
-                        }
-                    };
-                });
-            }
-        });
-    },
-
-    // Agar user field clear kar de toh wapas apna department auto-restore ho jaye
     department(frm) {
+        // Normal user agar department clear kare toh wapas auto-restore ho jaye
         if (!frm.doc.department && !frappe.user.has_role("System Manager")) {
             frappe.call({
                 method: "performance_management.performance_management.doctype.performance_task.performance_task.get_user_hierarchy_context",
                 callback(r) {
-                    if (r.message && r.message.department) {
+                    if (r.message && !r.message.is_unrestricted && r.message.department) {
                         frm.set_value("department", r.message.department);
                     }
                 }

@@ -184,41 +184,117 @@ def has_permission(doc, ptype="read", user=None):
 	return False
 
 
+
+def is_super_user(user):
+    """Check if the user is Administrator or has System Manager role."""
+    if user == "Administrator":
+        return True
+    return "System Manager" in frappe.get_roles(user)
+
+
 @frappe.whitelist()
 def get_user_hierarchy_context():
     """Logged in user ka Employee context: Department, Reporting Manager, aur Direct Subordinates fetch karega."""
     user = frappe.session.user
-    
-    # Administrator ke case me saare users allow honge
-    if user == "Administrator":
-        return {"is_admin": True}
 
-    employee = frappe.db.get_value(
-        "Employee", 
-        {"user_id": user, "status": "Active"}, 
-        ["name", "department", "reports_to"], 
-        as_dict=True
-    )
+    # Administrator & System Manager unrestricted hain
+    if is_super_user(user):
+        return {"is_unrestricted": True, "current_user": user}
+
+    # User ka Active Employee record dhoondein
+    employee = frappe.db.sql("""
+        SELECT name, department, reports_to 
+        FROM `tabEmployee` 
+        WHERE (user_id = %s OR company_email = %s OR prefered_email = %s)
+          AND status = 'Active'
+        LIMIT 1
+    """, (user, user, user), as_dict=True)
 
     if not employee:
-        return {"error": "Active Employee record not found for logged in user."}
+        return {"is_unrestricted": False, "department": None, "manager_user": None, "current_user": user}
 
+    emp = employee[0]
     manager_user_id = None
-    if employee.reports_to:
-        manager_user_id = frappe.db.get_value("Employee", employee.reports_to, "user_id")
-
-    # Jo log current employee ko direct report karte hain
-    subordinates = frappe.get_all(
-        "Employee",
-        filters={"reports_to": employee.name, "status": "Active"},
-        pluck="user_id"
-    )
-    subordinates = [u for u in subordinates if u]
+    if emp.reports_to:
+        manager_user_id = frappe.db.get_value("Employee", emp.reports_to, "user_id")
 
     return {
-        "is_admin": False,
-        "department": employee.department,
-        "manager_user": manager_user_id,
-        "subordinates": subordinates,
+        "is_unrestricted": False,
+        "department": emp.department,
+        "manager_user": manager_user_id or user,
         "current_user": user
     }
+
+
+# ─── Custom Query Handlers (Server Side Dropdowns) ───────────────────────────
+
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def get_allowed_departments(doctype, txt, searchfield, start, page_len, filters):
+    """Department dropdown: System Managers ko sabhi, baaki sabhi ko sirf apna department."""
+    user = frappe.session.user
+    if is_super_user(user):
+        return frappe.db.sql("""
+            SELECT name, department_name FROM `tabDepartment`
+            WHERE name LIKE %(txt)s
+            ORDER BY name ASC
+            LIMIT %(start)s, %(page_len)s
+        """, {"txt": f"%{txt}%", "start": start, "page_len": page_len})
+
+    emp = frappe.db.get_value("Employee", {"user_id": user, "status": "Active"}, ["department"], as_dict=True)
+    if emp and emp.department:
+        return [[emp.department, emp.department]]
+    return []
+
+
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def get_allowed_assigned_by(doctype, txt, searchfield, start, page_len, filters):
+    """Assigned By dropdown: Normal user ko sirf unka Manager aur wo khud."""
+    user = frappe.session.user
+    if is_super_user(user):
+        return frappe.db.sql("""
+            SELECT name, full_name FROM `tabUser`
+            WHERE enabled = 1 AND user_type = 'System User' AND (name LIKE %(txt)s OR full_name LIKE %(txt)s)
+            ORDER BY name ASC
+            LIMIT %(start)s, %(page_len)s
+        """, {"txt": f"%{txt}%", "start": start, "page_len": page_len})
+
+    allowed_users = [user]
+    emp = frappe.db.get_value("Employee", {"user_id": user, "status": "Active"}, ["reports_to"], as_dict=True)
+    if emp and emp.reports_to:
+        mgr_user = frappe.db.get_value("Employee", emp.reports_to, "user_id")
+        if mgr_user:
+            allowed_users.append(mgr_user)
+
+    return frappe.db.sql("""
+        SELECT name, full_name FROM `tabUser`
+        WHERE name IN %(users)s AND enabled = 1
+        ORDER BY name ASC
+    """, {"users": tuple(allowed_users)})
+
+
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def get_allowed_assigned_to(doctype, txt, searchfield, start, page_len, filters):
+    """Assigned To dropdown: Normal user ko sirf uske Direct Subordinates aur wo khud."""
+    user = frappe.session.user
+    if is_super_user(user):
+        return frappe.db.sql("""
+            SELECT name, full_name FROM `tabUser`
+            WHERE enabled = 1 AND user_type = 'System User' AND (name LIKE %(txt)s OR full_name LIKE %(txt)s)
+            ORDER BY name ASC
+            LIMIT %(start)s, %(page_len)s
+        """, {"txt": f"%{txt}%", "start": start, "page_len": page_len})
+
+    allowed_users = [user]
+    emp = frappe.db.get_value("Employee", {"user_id": user, "status": "Active"}, ["name"], as_dict=True)
+    if emp:
+        subs = frappe.get_all("Employee", filters={"reports_to": emp.name, "status": "Active"}, pluck="user_id")
+        allowed_users.extend([s for s in subs if s])
+
+    return frappe.db.sql("""
+        SELECT name, full_name FROM `tabUser`
+        WHERE name IN %(users)s AND enabled = 1
+        ORDER BY name ASC
+    """, {"users": tuple(allowed_users)})
