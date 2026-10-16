@@ -1,12 +1,14 @@
 {
  "actions": [],
+ "allow_bulk_edit": 1,
  "autoname": "format:PM-EXT-{#####}",
- "creation": "2026-03-25 00:00:00.000000",
+ "creation": "2026-03-25 00:00:00",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
   "task",
   "requested_by",
+  "requested_name",
   "col_break_1",
   "current_deadline",
   "requested_deadline",
@@ -21,17 +23,17 @@
   {
    "fieldname": "task",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "label": "Performance Task",
    "options": "Performance Task",
-   "reqd": 1,
-   "in_list_view": 1
+   "reqd": 1
   },
   {
    "fieldname": "requested_by",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "label": "Requested By",
-   "options": "User",
-   "in_list_view": 1
+   "options": "User"
   },
   {
    "fieldname": "col_break_1",
@@ -64,12 +66,12 @@
    "label": "Approval"
   },
   {
+   "default": "Pending",
    "fieldname": "approval_status",
    "fieldtype": "Select",
+   "in_list_view": 1,
    "label": "Status",
-   "options": "Pending\nApproved\nRejected",
-   "default": "Pending",
-   "in_list_view": 1
+   "options": "Pending\nApproved\nRejected"
   },
   {
    "fieldname": "approved_by",
@@ -82,12 +84,19 @@
    "fieldname": "rejection_reason",
    "fieldtype": "Small Text",
    "label": "Rejection Reason"
+  },
+  {
+   "fieldname": "requested_name",
+   "fieldtype": "Data",
+   "label": "Requested Name"
   }
  ],
- "modified": "2026-03-25 00:00:00.000000",
+ "links": [],
+ "modified": "2026-10-15 16:42:51.907711",
  "modified_by": "Administrator",
  "module": "Performance Management",
  "name": "Task Extension Request",
+ "naming_rule": "Expression (old style)",
  "owner": "Administrator",
  "permissions": [
   {
@@ -104,6 +113,7 @@
    "write": 1
   }
  ],
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],

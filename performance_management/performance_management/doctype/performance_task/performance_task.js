@@ -382,7 +382,7 @@ frappe.ui.form.on("Performance Task", {
         const status = frm.doc.status;
         const me = frappe.session.user;
         const is_assignee = me === frm.doc.assigned_to;
-        const is_manager = frappe.user.has_role("Managing Director") || frappe.user.has_role("Founder Office") || frappe.user.has_role("System Manager") || frappe.user.has_role("HR Manager");
+        const is_manager = frappe.user.has_role("Managing Director") || frappe.user.has_role("Founder Office") || frappe.user.has_role("System Manager") || frappe.user.has_role("HR Manager") || frappe.user.has_role("System Manager") || frappe.user.has_role("Department Head");
 
         if (status === "Pending" && is_assignee) {
             frm.add_custom_button(__("Start Task"), () => {
@@ -416,6 +416,8 @@ frappe.ui.form.on("Performance Task", {
                         { label: "New Deadline", fieldname: "new_deadline", fieldtype: "Datetime", reqd: 1 },
                         { label: "Reason", fieldname: "reason", fieldtype: "Text", reqd: 1 }
                     ], (values) => {
+                        frappe.db.get_value("User", frm.doc.assigned_to, "full_name", (r) => {
+                            const requesterFullName = r && r.full_name ? r.full_name : frm.doc.assigned_to;
                         frappe.call({
                             method: "frappe.client.insert",
                             args: {
@@ -425,6 +427,7 @@ frappe.ui.form.on("Performance Task", {
                                     requested_by: frappe.session.user,
                                     current_deadline: frm.doc.deadline,
                                     requested_deadline: values.new_deadline,
+                                    requested_name: requesterFullName,
                                     reason: values.reason
                                 }
                             },
@@ -432,6 +435,7 @@ frappe.ui.form.on("Performance Task", {
                                 frappe.show_alert({ message: "Extension request submitted!", indicator: "green" });
                             }
                         });
+                    });
                     }, __("Request Deadline Extension"));
                 }, __("Actions"));
             }
@@ -480,6 +484,65 @@ frappe.ui.form.on("Performance Task", {
                 "red"
             );
         }
+
+
+        // Is code ko add_action_buttons function ke andar lagayein jahan manager actions hote hain
+// Sirf tabhi dikhega jab task ka score 0 ho aur user assigner ho (ya top management)
+// 'const me' ko dobara likhne ki zaroorat nahi hai, agar upar define hai toh seedha ye likhein:
+// Top management aur assigner ka check JS ke mutabiq
+const is_top_mgmt = frappe.user.has_role("Managing Director") || 
+frappe.user.has_role("Founder Office") || 
+frappe.user.has_role("System Manager") || 
+frappe.user.has_role("Administrator");
+
+const is_assigner = me === frm.doc.assigned_by || is_top_mgmt;
+const is_score_zero = frm.doc.score === 0 || frm.doc.status === "Cancelled";
+
+if (is_assigner && is_score_zero && frm.doc.status !== "Draft") {
+frm.add_custom_button(__("Redelegate Task"), () => {
+frappe.prompt([
+{ label: "New Deadline", fieldname: "new_deadline", fieldtype: "Datetime", reqd: 1 },
+// { label: "New Assignee", fieldname: "new_assignee", fieldtype: "Link", options: "User" }
+], (values) => {
+frappe.call({
+method: "performance_management.performance_management.doctype.performance_task.performance_task.redelegate_task",
+args: {
+task_name: frm.doc.name,
+new_deadline: values.new_deadline,
+new_assignee: values.new_assignee
+},
+callback(r) {
+if (r.message && r.message.status === "success") {
+    frappe.show_alert({ message: "Task Redelegated Successfully!", indicator: "green" });
+    frappe.set_route("Form", "Performance Task", r.message.new_task);
+}
+}
+});
+}, __("Redelegate Task"));
+}, __("Actions"));
+}
+
+if (is_assignee && is_score_zero) {
+frm.add_custom_button(__("Request for Redelegation"), () => {
+frappe.prompt([
+{ label: "Reason / Note for Manager", fieldname: "reason", fieldtype: "Text", reqd: 1 }
+], (values) => {
+frappe.call({
+method: "performance_management.performance_management.doctype.performance_task.performance_task.request_redelegation",
+args: {
+task_name: frm.doc.name,
+reason: values.reason
+},
+callback(r) {
+if (r.message && r.message.status === "success") {
+    frappe.show_alert({ message: "Redelegation request sent to manager!", indicator: "green" }, 5);
+    frm.reload_doc();
+}
+}
+});
+}, __("Request Redelegation"));
+}, __("Actions"));
+}
     },
 
     priority(frm) {

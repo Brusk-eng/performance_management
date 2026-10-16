@@ -1,14 +1,16 @@
 {
  "actions": [],
+ "allow_bulk_edit": 1,
  "allow_import": 1,
  "autoname": "format:PM-TASK-{#####}",
- "creation": "2026-03-25 00:00:00.000000",
+ "creation": "2026-03-25 00:00:00",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
   "task_title",
   "department",
   "assigned_to",
+  "assigned_name",
   "assigned_by",
   "task_type",
   "frequency",
@@ -29,35 +31,38 @@
   "score",
   "is_overdue",
   "extension_count",
+  "relegation_requested",
+  "redelegation_reason",
   "col_break_3",
   "checklist_template",
   "parent_task",
-  "amended_from"
+  "amended_from",
+  "redelegation_count"
  ],
  "fields": [
   {
    "fieldname": "task_title",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "Task Title",
    "reqd": 1,
-   "in_list_view": 1,
    "search_index": 1
   },
   {
    "fieldname": "department",
    "fieldtype": "Link",
-   "label": "Department",
-   "options": "Department",
    "in_list_view": 1,
-   "in_standard_filter": 1
+   "in_standard_filter": 1,
+   "label": "Department",
+   "options": "Department"
   },
   {
    "fieldname": "assigned_to",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "label": "Assigned To",
    "options": "User",
    "reqd": 1,
-   "in_list_view": 1,
    "search_index": 1
   },
   {
@@ -67,48 +72,48 @@
    "options": "User"
   },
   {
+   "default": "Delegation",
    "fieldname": "task_type",
    "fieldtype": "Select",
+   "in_list_view": 1,
    "label": "Task Type",
-   "options": "Delegation\nChecklist\nCompliance\nOperational",
-   "default": "Delegation",
-   "in_list_view": 1
+   "options": "Delegation\nChecklist\nCompliance\nOperational"
   },
   {
    "fieldname": "frequency",
    "fieldtype": "Select",
+   "in_list_view": 1,
    "label": "Frequency",
-   "options": "\nDaily\nWeekly\nMonthly\nQuarterly\nHalf-Yearly\nYearly",
-   "in_list_view": 1
+   "options": "\nDaily\nWeekly\nMonthly\nQuarterly\nHalf-Yearly\nYearly"
   },
   {
    "fieldname": "col_break_1",
    "fieldtype": "Column Break"
   },
   {
+   "default": "Draft",
    "fieldname": "status",
    "fieldtype": "Select",
-   "label": "Status",
-   "options": "Draft\nPending\nIn Progress\nPending Approval\nApproved\nReopened\nCancelled",
-   "default": "Draft",
    "in_list_view": 1,
    "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Draft\nPending\nIn Progress\nPending Approval\nApproved\nReopened\nCancelled",
    "search_index": 1
   },
   {
+   "default": "Medium",
    "fieldname": "priority",
    "fieldtype": "Select",
-   "label": "Priority",
-   "options": "Low\nMedium\nHigh\nCritical",
-   "default": "Medium",
    "in_list_view": 1,
-   "in_standard_filter": 1
+   "in_standard_filter": 1,
+   "label": "Priority",
+   "options": "Low\nMedium\nHigh\nCritical"
   },
   {
    "fieldname": "deadline",
    "fieldtype": "Datetime",
-   "label": "Deadline",
-   "in_list_view": 1
+   "in_list_view": 1,
+   "label": "Deadline"
   },
   {
    "fieldname": "completion_date",
@@ -132,17 +137,17 @@
    "label": "Approval"
   },
   {
+   "default": "0",
    "fieldname": "requires_approval",
    "fieldtype": "Check",
-   "label": "Requires Approval",
-   "default": "0"
+   "label": "Requires Approval"
   },
   {
+   "default": "Not Required",
    "fieldname": "approval_status",
    "fieldtype": "Select",
    "label": "Approval Status",
-   "options": "Not Required\nPending\nApproved\nRejected",
-   "default": "Not Required"
+   "options": "Not Required\nPending\nApproved\nRejected"
   },
   {
    "fieldname": "col_break_2",
@@ -166,25 +171,25 @@
    "label": "Tracking"
   },
   {
+   "default": "100",
    "fieldname": "score",
    "fieldtype": "Float",
    "label": "Score",
-   "default": "100",
    "read_only": 1
   },
   {
+   "default": "0",
    "fieldname": "is_overdue",
    "fieldtype": "Check",
+   "in_list_view": 1,
    "label": "Is Overdue",
-   "default": "0",
-   "read_only": 1,
-   "in_list_view": 1
+   "read_only": 1
   },
   {
+   "default": "0",
    "fieldname": "extension_count",
    "fieldtype": "Int",
    "label": "Extension Count",
-   "default": "0",
    "read_only": 1
   },
   {
@@ -207,18 +212,41 @@
    "fieldname": "amended_from",
    "fieldtype": "Link",
    "label": "Amended From",
-   "options": "Performance Task",
    "no_copy": 1,
+   "options": "Performance Task",
    "print_hide": 1,
    "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "relegation_requested",
+   "fieldtype": "Check",
+   "label": "Redelegation Requested"
+  },
+  {
+   "fieldname": "redelegation_reason",
+   "fieldtype": "Small Text",
+   "label": "Redelegation Reason"
+  },
+  {
+   "fetch_from": "assigned_to.full_name",
+   "fieldname": "assigned_name",
+   "fieldtype": "Data",
+   "label": "Assigned Name"
+  },
+  {
+   "default": "0",
+   "fieldname": "redelegation_count",
+   "fieldtype": "Int",
+   "label": "Redelegation Count"
   }
  ],
- "index_view": 1,
- "is_submittable": 0,
- "modified": "2026-03-25 00:00:00.000000",
- "modified_by": "Administrator",
+ "links": [],
+ "modified": "2026-10-16 11:22:53.340213",
+ "modified_by": "dme@solarsales.in",
  "module": "Performance Management",
  "name": "Performance Task",
+ "naming_rule": "Expression (old style)",
  "owner": "Administrator",
  "permissions": [
   {
@@ -243,9 +271,10 @@
    "write": 1
   }
  ],
+ "row_format": "Dynamic",
+ "search_fields": "task_title,assigned_to,status",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
- "title_field": "task_title",
- "search_fields": "task_title,assigned_to,status"
+ "title_field": "task_title"
 }
