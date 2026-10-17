@@ -1249,7 +1249,7 @@ class PerformanceTask(Document):
             self.completion_date = now_datetime()
             self._calculate_final_score()
 
-        if self.status == "Reopened":
+        if self.has_value_changed("status") and self.status == "Reopened":
             if hasattr(self, "submission_date"):
                 self.submission_date = None
             self.score = max(0.0, (self.score or 100.0) - 20.0)
